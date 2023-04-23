@@ -1,0 +1,10 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <BuildRamdrive>$([System.Environment]::GetEnvironmentVariable("BUILD_RAMDRIVE",System.EnvironmentVariableTarget.Machine))</BuildRamdrive>
+    </PropertyGroup>
+    <PropertyGroup Condition=" '$(BuildRamdrive)' != '' AND '$(MSBuildProjectFile)' != ''">
+        <BaseIntermediateOutputPath>$(BuildRamdrive)\Projects\$(SolutionName)\$(MSBuildProjectFile)\obj\</BaseIntermediateOutputPath>
+        <IntermediateOutputPath>$(BuildRamdrive)\Projects\$(SolutionName)\$(MSBuildProjectFile)\obj\$(Configuration)\</IntermediateOutputPath>
+        <MSBuildProjectExtensionsPath>$(BuildRamdrive)\Projects\$(SolutionName)\$(MSBuildProjectFile)\obj\</MSBuildProjectExtensionsPath>
+    </PropertyGroup>
+</Project>

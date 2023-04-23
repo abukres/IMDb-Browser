@@ -1,0 +1,134 @@
+﻿@using Data.Models
+@using DevExpress.Data.Filtering
+@using Microsoft.EntityFrameworkCore
+@implements IDisposable
+@inject IDbContextFactory<IMDBContext> MovieContextFactory
+
+
+<DxGrid Data="MovieDataSource" CssClass="mw-1100"
+        ShowFilterRow="true"
+        EditorRenderMode="GridEditorRenderMode.Integrated"
+        PageSize="15"
+        PagerVisible="true"
+        PagerNavigationMode="PagerNavigationMode.Auto"
+        PageSizeSelectorVisible="true"
+        AutoCollapseDetailRow="true"
+        DetailExpandButtonDisplayMode="@GridDetailExpandButtonDisplayMode">
+    <Columns>
+        <DxGridDataColumn Caption="Movie Title" FieldName="MovieTitle" FilterRowOperatorType="GridFilterRowOperatorType.Contains" Width=""/>
+        <DxGridDataColumn Caption="Country" FieldName="Country" FilterRowOperatorType="GridFilterRowOperatorType.Contains" Width="9%"/>
+        <DxGridDataColumn Caption="Average Ratinge" FieldName="AverageRating" Width="8%">
+            <FilterRowCellTemplate>
+                <DxComboBox AllowUserInput="true"
+                            Value="context.FilterCriteria"
+                            TextChanged="@((string input) => OnComboboxChanged(input, context, "AverageRating"))"
+                            Data="RatingFilterIntervals" ValueFieldName="Criteria" TextFieldName="DisplayText"
+                            ClearButtonDisplayMode="DataEditorClearButtonDisplayMode.Auto"/>
+            </FilterRowCellTemplate>
+        </DxGridDataColumn>
+        <DxGridDataColumn Caption="Num Votes" FieldName="NumVotes" Width="7%">
+            <FilterRowCellTemplate>
+                <DxComboBox AllowUserInput="true"
+                            Value="context.FilterCriteria"
+                            TextChanged="@((string input) => OnComboboxChanged(input, context, "NumVotes"))"
+                            Data="VoteFilterIntervals" ValueFieldName="Criteria" TextFieldName="DisplayText"
+                            ClearButtonDisplayMode="DataEditorClearButtonDisplayMode.Auto"/>
+            </FilterRowCellTemplate>
+        </DxGridDataColumn>
+        <DxGridDataColumn Caption="Type" FieldName="TitleType" Width="7%"/>
+        <DxGridDataColumn Caption="Start Year" FieldName="StartYear" DisplayFormat="F0" Width="8%">
+            <FilterRowCellTemplate>
+                <DxComboBox AllowUserInput="true"
+                            Value="context.FilterCriteria"
+                            TextChanged="@((string input) => OnComboboxChanged(input, context, "StartYear"))"
+                            Data="StartYearFilterIntervals" ValueFieldName="Criteria" TextFieldName="DisplayText"
+                            ClearButtonDisplayMode="DataEditorClearButtonDisplayMode.Auto"/>
+            </FilterRowCellTemplate>
+        </DxGridDataColumn>
+        <DxGridDataColumn Caption="Runtime (minutes)" FieldName="RuntimeMinutes" Width="8%"/>
+        <DxGridDataColumn Caption="Genres" FieldName="Genres" FilterRowOperatorType="GridFilterRowOperatorType.Contains" Width="17%"/>
+        <DxGridCommandColumn Width="80px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false"/>
+    </Columns>
+
+    <DetailRowTemplate>
+        <ActorGrid Movie="(IMovie)context.DataItem" ViewType="@ViewType"/>
+    </DetailRowTemplate>
+</DxGrid>
+
+
+@code {
+
+    [Parameter]
+    public string ViewType { get; set; }
+
+    [Parameter]
+    public IActor Actor { get; set; }
+
+    GridDevExtremeDataSource<IMovie> MovieDataSource { get; set; }
+
+    IMDBContext IMDBMovieContext { get; set; }
+
+    GridDetailExpandButtonDisplayMode GridDetailExpandButtonDisplayMode = GridDetailExpandButtonDisplayMode.Auto;
+    
+        const string MOVIE = "Movie";
+    const string ACTOR = "Actor";
+
+
+    static readonly IReadOnlyList<FilterInterval> StartYearFilterIntervals = new FilterInterval[] { new("[StartYear] < 1980", "< 1980"), new("[StartYear] between (1980, 2010)", "1980 to 2010"), new("[StartYear] > 2010", "> 2010"), new("[StartYear] = 2010", "= 2010") };
+    static readonly IReadOnlyList<FilterInterval> RatingFilterIntervals = new FilterInterval[] { new("[AverageRating] < 4", "< 4"), new("[AverageRating] between (5, 6)", "5 to 6"), new("[AverageRating] > 6", "> 6") };
+    static readonly IReadOnlyList<FilterInterval> VoteFilterIntervals = new FilterInterval[] { new("[NumVotes] < 100", "< 100"), new("[NumVotes] between (100, 1000)", "100 to 1000"), new("[NumVotes] > 1000", "> 1000") };
+
+    record FilterInterval(CriteriaOperator Criteria, string DisplayText)
+    {
+        public FilterInterval(string CriteriaText, string DisplayText) : this(CriteriaOperator.Parse(CriteriaText), DisplayText)
+        {
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (ViewType == MOVIE)
+            GridDetailExpandButtonDisplayMode = GridDetailExpandButtonDisplayMode.Auto;
+        else
+            GridDetailExpandButtonDisplayMode = GridDetailExpandButtonDisplayMode.Never;
+        base.OnParametersSet();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        IMDBMovieContext = MovieContextFactory.CreateDbContext();
+
+        if (ViewType == ACTOR)
+            MovieDataSource = new GridDevExtremeDataSource<IMovie>(IMDBMovieContext.MoviesWithActors.Where(a => a.Nconst == Actor.Nconst));
+        else
+            MovieDataSource = new GridDevExtremeDataSource<IMovie>(IMDBMovieContext.MoviesWithActorsDistincts);
+    }
+
+    public void Dispose()
+    {
+        IMDBMovieContext?.Dispose();
+    }
+
+    private void OnComboboxChanged(string text, GridDataColumnFilterRowCellTemplateContext context, string fieldName)
+    {
+        if (String.IsNullOrEmpty(text))
+        {
+            context.FilterCriteria = null;
+            return;
+        }
+
+        CriteriaOperator criteriaOperator = new NullOperator();
+
+        if (text.Contains("=") || text.Contains("<") || text.Contains(">"))
+        {
+            criteriaOperator = CriteriaOperator.Parse(fieldName + " " + text);
+        }
+        else if (text.Contains("to"))
+        {
+            criteriaOperator = CriteriaOperator.Parse(fieldName + " between (" + text.Replace(" to ", ", ") + ")");
+        }
+
+        context.FilterCriteria = criteriaOperator;
+    }
+
+}

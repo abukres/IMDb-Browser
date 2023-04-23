@@ -1,0 +1,136 @@
+﻿@using Microsoft.EntityFrameworkCore
+@using Data.Models
+@using DevExpress.Blazor
+@using DevExpress.Data.Filtering
+@using DevExtreme.AspNet.Data
+@implements IDisposable
+@inject IDbContextFactory<IMDBContext> MovieContextFactory
+
+
+<DxGrid Data="ActorDataSource"
+        PageSize="15"
+        PagerVisible="true"
+        PageSizeSelectorVisible="true"
+        AutoCollapseDetailRow="true"
+        AutoExpandAllGroupRows="true"
+        ShowFilterRow="true"
+        CssClass="mw-1100"
+        @ref="@grid"
+        DetailExpandButtonDisplayMode="@GridDetailExpandButtonDisplayMode">
+    <Columns>
+        <DxGridDataColumn FieldName="ActorName" Caption="Name" DisplayFormat="F0"/>
+        <DxGridDataColumn FieldName="BirthYear" Caption="Birth Year" DisplayFormat="F0" Width="12%">
+            <FilterRowCellTemplate>
+                <DxComboBox AllowUserInput="true"
+                            Value="context.FilterCriteria"
+                            TextChanged="@((string input) => OnComboboxChanged(input, context, "BirthYear"))"
+                            Data="BirthYearFilterIntervals" ValueFieldName="Criteria" TextFieldName="DisplayText"
+                            ClearButtonDisplayMode="DataEditorClearButtonDisplayMode.Auto"/>
+            </FilterRowCellTemplate>
+        </DxGridDataColumn>
+
+        <DxGridDataColumn FieldName="DeathYear" Caption="Death Year" DisplayFormat="F0" Width="12%">
+            <FilterRowCellTemplate>
+                <DxComboBox AllowUserInput="true"
+                            Value="context.FilterCriteria"
+                            TextChanged="@((string input) => OnComboboxChanged(input, context, "DeathYear"))"
+                            Data="DeathYearFilterIntervals" ValueFieldName="Criteria" TextFieldName="DisplayText"
+                            ClearButtonDisplayMode="DataEditorClearButtonDisplayMode.Auto" />
+            </FilterRowCellTemplate>
+        </DxGridDataColumn>
+        <DxGridDataColumn FieldName="PrimaryProfession" Caption="Primary Profession" Width="20%" />
+        <DxGridDataColumn FieldName="Country" Caption="Country" Width="15%" />
+    </Columns>
+
+    <DetailRowTemplate>
+        <MovieGrid Actor="(IActor)context.DataItem" ViewType="@ViewType"/>
+    </DetailRowTemplate>
+
+</DxGrid>
+
+@code {
+
+    [Parameter]
+    public IMovie Movie { get; set; }
+
+    [Parameter]
+    public string ViewType { get; set; }
+
+    DxGrid grid;
+    
+    GridDevExtremeDataSource<IActor> ActorDataSource { get; set; }
+    GridDetailExpandButtonDisplayMode GridDetailExpandButtonDisplayMode = GridDetailExpandButtonDisplayMode.Auto;
+
+    IMDBContext ImdbContext { get; set; }
+        const string MOVIE = "Movie";
+        const string ACTOR = "Actor";
+
+    static readonly IReadOnlyList<FilterInterval> BirthYearFilterIntervals = new FilterInterval[] { new("[BirthYear] < 1970", "< 1970"), new("[BirthYear] between (1960, 1980)", "1960 to 1980"), new("[BirthYear] > 1980", "> 1980"), new("[BirthYear] = 1980", "= 1980") };
+
+    static readonly IReadOnlyList<FilterInterval> DeathYearFilterIntervals = new FilterInterval[] { new("[DeathYear] < 1970", "< 1970"), new("[DeathYear] between (1960, 2000)", "1960 to 2000"), new("[DeathYear] > 2000", "> 2000"), new("[DeathYear] = 2015", "= 2015") };
+
+    record FilterInterval(CriteriaOperator Criteria, string DisplayText)
+    {
+        public FilterInterval(string CriteriaText, string DisplayText) : this(CriteriaOperator.Parse(CriteriaText), DisplayText)
+        {
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        ImdbContext = MovieContextFactory.CreateDbContext();
+
+        ActorDataSource = new GridDevExtremeDataSource<IActor>(ImdbContext.ActorsWithMovieInfos);
+
+        if (ViewType == MOVIE)
+            ActorDataSource = new GridDevExtremeDataSource<IActor>(ImdbContext.ActorsWithMovieInfos.Where(a => a.Tconst == Movie.Tconst));
+        else
+        {
+            ActorDataSource = new GridDevExtremeDataSource<IActor>(ImdbContext.ActorsWithMovieInfoDistincts);
+            /*ActorDataSource.CustomizeLoadOptions = (DataSourceLoadOptionsBase loadOptions) =>
+            {
+            
+                loadOptions.Select = new[] { "ActorName" };
+            };*/
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (ViewType == ACTOR)
+            GridDetailExpandButtonDisplayMode = GridDetailExpandButtonDisplayMode.Auto;
+        else
+            GridDetailExpandButtonDisplayMode = GridDetailExpandButtonDisplayMode.Never;
+        base.OnParametersSet();
+    }
+
+
+    private void OnComboboxChanged(string text, GridDataColumnFilterRowCellTemplateContext context, string fieldName)
+    {
+        if (String.IsNullOrEmpty(text))
+        {
+            context.FilterCriteria = null;
+            return;
+        }
+
+        CriteriaOperator criteriaOperator = new NullOperator();
+
+        if (text.Contains("=") || text.Contains("<") || text.Contains(">"))
+        {
+            criteriaOperator = CriteriaOperator.Parse(fieldName + " " + text);
+        }
+        else if (text.Contains("to"))
+        {
+            criteriaOperator = CriteriaOperator.Parse(fieldName + " between (" + text.Replace(" to ", ", ") + ")");
+        }
+
+        context.FilterCriteria = criteriaOperator;
+    }
+
+    public void Dispose()
+    {
+        ImdbContext?.Dispose();
+    }
+
+}
+

@@ -1,0 +1,2 @@
+[PostSave]
+Commands=Build.BuildSolution

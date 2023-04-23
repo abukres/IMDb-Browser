@@ -1,0 +1,54 @@
+﻿@page "/"
+@using Data.Models
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<IMDBContext> MovieContextFactory
+
+<h2>IMDb Browser</h2>
+
+
+<p class="pb-2 pt-2 mw-1100">
+    <hl>
+        <li>Data is only for United States, United Kingdom, France and Egypt.</li>
+        <li>Click on a column header to sort. Use the row filter to filter. Use an existing filter or enter a similar filter expression. Partial words work.</li>
+        <li>Expand a row to display details for the row.</li>
+    </hl>
+</p>
+
+<b>View by:</b>
+
+<div class="flex-container mb-3">
+
+    <div class="flex-child">
+        <input type="radio" name="ViewType" autocomplete="off" @onchange="() => ToggleViewType(true)" checked="checked">
+        <label>Movie</label>
+    </div>
+
+    <div class="flex-child" >
+        <input type="radio" name="ViewType" autocomplete="off" @onchange="() => ToggleViewType(false)">
+        <label>Actor</label>
+    </div>
+    
+</div>
+
+@if (ViewType == MOVIE)
+{
+    <MovieGrid ViewType="@ViewType"></MovieGrid>
+}
+else
+{
+    <ActorGrid ViewType="@ViewType"></ActorGrid>
+}
+
+
+
+@code {
+    public string ViewType { get; set; } = MOVIE;
+    public const string MOVIE = "Movie";
+    public const string ACTOR = "Actor";
+
+    protected async Task ToggleViewType(bool isMovie)
+    {
+        ViewType = isMovie? MOVIE : ACTOR;
+    }
+}
+
