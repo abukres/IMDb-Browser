@@ -4,7 +4,7 @@ The dataset can be loaded from kaggle.com or from download links provided by IMD
   
 DevExpress Blazor is a commercial UI component suite. You can download a free 30 day trial version from devexpress.com.  
   
-##### Instructions to use and run:
+#### Instructions to use and run:
 * Install DevExpress Blazor
 
 * Clone the repo and load the the solution Visual Studio. 
